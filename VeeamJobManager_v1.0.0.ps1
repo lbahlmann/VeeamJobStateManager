@@ -404,8 +404,8 @@ $btnSave.Add_Click({
 
         $state | ConvertTo-Json -Depth 5 | Out-File -FilePath $outFile -Encoding UTF8
 
-        $enabled = ($jobs | Where-Object { $_.IsEnabled -eq $true }).Count
-        $disabled = ($jobs | Where-Object { $_.IsEnabled -eq $false }).Count
+        $enabled = @($jobs | Where-Object { $_.IsEnabled -eq $true }).Count
+        $disabled = @($jobs | Where-Object { $_.IsEnabled -eq $false }).Count
 
         Write-Log "$($jobs.Count) Jobs gesichert ($enabled aktiv, $disabled inaktiv)" "OK"
         Write-Log "Datei: $outFile" "OK"
@@ -465,10 +465,10 @@ $btnDisable.Add_Click({
             try {
                 switch ($job.JobKind) {
                     "VBRJob" {
-                        Get-VBRJob -Name $job.Name | Disable-VBRJob -Confirm:$false | Out-Null
+                        Get-VBRJob -Name $job.Name | Disable-VBRJob | Out-Null
                     }
                     "VBRTapeJob" {
-                        Get-VBRTapeJob -Name $job.Name | Disable-VBRTapeJob -Confirm:$false | Out-Null
+                        Get-VBRTapeJob -Name $job.Name | Disable-VBRTapeJob | Out-Null
                     }
                     "VSBJob" {
                         $sureJob = Get-VSBJob -Name $job.Name
@@ -551,10 +551,10 @@ $btnRestore.Add_Click({
             try {
                 switch ($job.JobKind) {
                     "VBRJob" {
-                        Get-VBRJob -Name $job.Name | Enable-VBRJob -Confirm:$false | Out-Null
+                        Get-VBRJob -Name $job.Name | Enable-VBRJob | Out-Null
                     }
                     "VBRTapeJob" {
-                        Get-VBRTapeJob -Name $job.Name | Enable-VBRTapeJob -Confirm:$false | Out-Null
+                        Get-VBRTapeJob -Name $job.Name | Enable-VBRTapeJob | Out-Null
                     }
                     "VSBJob" {
                         $sureJob = Get-VSBJob -Name $job.Name
