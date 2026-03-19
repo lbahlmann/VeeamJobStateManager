@@ -1,13 +1,23 @@
 <#
 .SYNOPSIS
-    Veeam Job State Manager - GUI Tool zum Sichern, Deaktivieren und Wiederherstellen von Job-Zustaenden.
+    Veeam Job State Manager - Sichert und restauriert Job-Zustaende bei Veeam Updates.
+
 .DESCRIPTION
-    WPF-basiertes GUI Tool fuer Veeam Update-Szenarien.
-    Sichert den Enabled/Disabled-Zustand aller Veeam Jobs, deaktiviert alle fuer das Update,
-    und stellt den Originalzustand danach wieder her.
+    GUI-Tool fuer den Einsatz auf Veeam Backup & Replication Servern waehrend Updates/Upgrades.
+
+    Workflow:
+    1. SAVE     - Dokumentiert den Enabled/Disabled-Zustand aller Backup-Jobs als JSON
+    2. DISABLE  - Deaktiviert alle Jobs, wartet auf laufende Jobs, deaktiviert diese nach Abschluss
+    3. (Veeam Update durchfuehren)
+    4. RESTORE  - Stellt den urspruenglichen Zustand exakt wieder her
+
+    Unterstuetzte Job-Typen: VMware Backup, Backup Copy, Tape, SureBackup
+    Kompatibel mit Veeam v9, v10, v11, v12 (Snap-in und Modul)
+
 .NOTES
     Version: 1.1.0
-    Autor:   badata GmbH
+    Autor:   Lars Bahlmann
+    Firma:   badata GmbH - www.badata.de
     Datei:   VeeamJobManager_v1.1.0.ps1
 #>
 
