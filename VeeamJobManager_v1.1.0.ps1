@@ -614,6 +614,7 @@ $btnDisable.Add_Click({
 
                         if ($stillRunning.Count -eq 0) {
                             $script:watchTimer.Stop()
+                            $script:watchTimerActive = $false
                             Write-Log "Alle laufenden Jobs beendet und deaktiviert!" "OK"
                             Show-StatusBanner "Alle laufenden Jobs beendet und deaktiviert - bereit f${ue}r Update" "#A6E3A1"
                             Set-ButtonsEnabled $true
@@ -641,6 +642,7 @@ $btnDisable.Add_Click({
                         Write-Log "Fehler beim Pr${ue}fen: $($_.Exception.Message)" "FEHLER"
                     }
                 })
+                $script:watchTimerActive = $true
                 $script:watchTimer.Start()
                 # Buttons bleiben disabled aber UI ist bedienbar (Fenster schliessen etc.)
                 return
@@ -671,7 +673,9 @@ $btnDisable.Add_Click({
         Write-Log "Fehler: $($_.Exception.Message)" "FEHLER"
     }
     finally {
-        Set-ButtonsEnabled $true
+        if (-not $script:watchTimerActive) {
+            Set-ButtonsEnabled $true
+        }
     }
 })
 
