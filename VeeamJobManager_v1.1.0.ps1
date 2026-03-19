@@ -6,12 +6,12 @@
     Sichert den Enabled/Disabled-Zustand aller Veeam Jobs, deaktiviert alle fuer das Update,
     und stellt den Originalzustand danach wieder her.
 .NOTES
-    Version: 1.0.0
+    Version: 1.1.0
     Autor:   badata GmbH
-    Datei:   VeeamJobManager_v1.0.0.ps1
+    Datei:   VeeamJobManager_v1.1.0.ps1
 #>
 
-$script:AppVersion = "1.0.0"
+$script:AppVersion = "1.1.0"
 
 # --- WPF laden ---
 Add-Type -AssemblyName PresentationFramework
