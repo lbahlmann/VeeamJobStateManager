@@ -584,8 +584,8 @@ $btnDisable.Add_Click({
 
                         if ($stillRunning.Count -eq 0) {
                             $script:watchTimer.Stop()
-                            Write-Log "Alle Jobs beendet und deaktiviert!" "OK"
-                            Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1"
+                            Write-Log "Alle laufenden Jobs beendet und deaktiviert!" "OK"
+                            Show-StatusBanner "Alle laufenden Jobs beendet und deaktiviert - bereit fuer Update" "#A6E3A1"
                             Set-ButtonsEnabled $true
 
                             $updatedJobs = Get-AllVeeamJobs
@@ -593,7 +593,7 @@ $btnDisable.Add_Click({
                             Update-StateFileList
 
                             [System.Windows.MessageBox]::Show(
-                                "$($script:watchDisabledCount) Jobs deaktiviert.`nAlle laufenden Jobs sind beendet.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
+                                "$($script:watchDisabledCount) Jobs deaktiviert.`nAlle laufenden Jobs beendet und deaktiviert.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
                                 "Bereit fuer Update",
                                 [System.Windows.MessageBoxButton]::OK,
                                 [System.Windows.MessageBoxImage]::Information
