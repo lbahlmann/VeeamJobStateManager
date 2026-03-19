@@ -27,9 +27,6 @@ $script:AppVersion = "1.1.0"
 $ae = [string][char]0xE4  # ae
 $oe = [string][char]0xF6  # oe
 $ue = [string][char]0xFC  # ue
-$Ae = [string][char]0xC4  # Ae
-$Oe = [string][char]0xD6  # Oe
-$Ue = [string][char]0xDC  # Ue
 $sz = [string][char]0xDF  # ss
 
 # --- WPF laden ---
