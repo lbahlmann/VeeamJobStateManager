@@ -59,26 +59,26 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             </Setter>
         </Style>
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="Black"/>
             <Setter Property="BorderBrush" Value="#45475A"/>
             <Setter Property="Height" Value="30"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
         <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#45475A"/>
-                    <Setter Property="Foreground" Value="#CDD6F4"/>
+                    <Setter Property="Background" Value="#89B4FA"/>
+                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#585B70"/>
-                    <Setter Property="Foreground" Value="#CDD6F4"/>
+                    <Setter Property="Background" Value="#89B4FA"/>
+                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -106,12 +106,8 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         <!-- Status Banner -->
         <Border x:Name="pnlStatusBanner" Grid.Row="1" Background="#F9E2AF" CornerRadius="6"
                 Padding="16,10" Margin="0,0,0,12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock x:Name="txtStatusIcon" Text="&#x23F3;" FontSize="18"
-                           VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#1E1E2E"/>
-                <TextBlock x:Name="txtStatusBanner" Text="" FontSize="15" FontWeight="Bold"
-                           VerticalAlignment="Center" Foreground="#1E1E2E"/>
-            </StackPanel>
+            <TextBlock x:Name="txtStatusBanner" Text="" FontSize="15" FontWeight="Bold"
+                       HorizontalAlignment="Center" Foreground="#1E1E2E"/>
         </Border>
 
         <!-- Buttons -->
@@ -127,7 +123,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             <Button x:Name="btnSave" Grid.Column="0" Style="{StaticResource ActionButton}"
                     Background="#45475A">
                 <StackPanel>
-                    <TextBlock Text="&#x1F4BE; SAVE" FontSize="16" FontWeight="Bold"
+                    <TextBlock Text="SAVE" FontSize="16" FontWeight="Bold"
                                HorizontalAlignment="Center" Foreground="#89B4FA"/>
                     <TextBlock Text="Zustand dokumentieren" FontSize="11"
                                HorizontalAlignment="Center" Foreground="#A6ADC8"/>
@@ -137,7 +133,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             <Button x:Name="btnDisable" Grid.Column="2" Style="{StaticResource ActionButton}"
                     Background="#45475A">
                 <StackPanel>
-                    <TextBlock Text="&#x26D4; DISABLE ALL" FontSize="16" FontWeight="Bold"
+                    <TextBlock Text="DISABLE ALL" FontSize="16" FontWeight="Bold"
                                HorizontalAlignment="Center" Foreground="#F9E2AF"/>
                     <TextBlock Text="Alle Jobs deaktivieren" FontSize="11"
                                HorizontalAlignment="Center" Foreground="#A6ADC8"/>
@@ -147,7 +143,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             <Button x:Name="btnRestore" Grid.Column="4" Style="{StaticResource ActionButton}"
                     Background="#45475A">
                 <StackPanel>
-                    <TextBlock Text="&#x2705; RESTORE" FontSize="16" FontWeight="Bold"
+                    <TextBlock Text="RESTORE" FontSize="16" FontWeight="Bold"
                                HorizontalAlignment="Center" Foreground="#A6E3A1"/>
                     <TextBlock Text="Zustand wiederherstellen" FontSize="11"
                                HorizontalAlignment="Center" Foreground="#A6ADC8"/>
@@ -167,7 +163,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             <ComboBox x:Name="cmbStateFiles" Grid.Column="1"
                       Style="{StaticResource DarkComboBox}"
                       ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
-            <Button x:Name="btnRefreshFiles" Grid.Column="2" Content="&#x1F504;" Width="30" Height="30"
+            <Button x:Name="btnRefreshFiles" Grid.Column="2" Content="Aktualisieren" Width="Auto" Height="30"
                     Background="#45475A" Foreground="#CDD6F4" BorderThickness="0" Cursor="Hand"
                     Margin="8,0,0,0" FontSize="14"/>
         </Grid>
@@ -255,7 +251,6 @@ $btnRefreshFiles = $window.FindName("btnRefreshFiles")
 $cmbStateFiles = $window.FindName("cmbStateFiles")
 $pnlStatusBanner = $window.FindName("pnlStatusBanner")
 $txtStatusBanner = $window.FindName("txtStatusBanner")
-$txtStatusIcon = $window.FindName("txtStatusIcon")
 $dgJobs = $window.FindName("dgJobs")
 $txtLog = $window.FindName("txtLog")
 $txtEnabledCount = $window.FindName("txtEnabledCount")
@@ -281,10 +276,9 @@ function Set-ButtonsEnabled {
 }
 
 function Show-StatusBanner {
-    param([string]$Text, [string]$Color = "#F9E2AF", [string]$Icon = "`u{23F3}")
-    $pnlStatusBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Color)
+    param([string]$Text, [string]$Color = "#F9E2AF")
+    $pnlStatusBanner.Background = (New-Object System.Windows.Media.BrushConverter).ConvertFromString($Color)
     $txtStatusBanner.Text = $Text
-    $txtStatusIcon.Text = $Icon
     $pnlStatusBanner.Visibility = "Visible"
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
@@ -595,7 +589,7 @@ $btnDisable.Add_Click({
                     if ($stillRunning.Count -eq 0) {
                         Write-Log "Alle Jobs beendet und deaktiviert!" "OK"
                         Hide-StatusBanner
-                        Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1" "`u{2705}"
+                        Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1"
                         break
                     }
 
@@ -612,7 +606,7 @@ $btnDisable.Add_Click({
         }
         else {
             Write-Log "Keine laufenden Jobs." "OK"
-            Show-StatusBanner "Alle Jobs deaktiviert - bereit fuer Update" "#A6E3A1" "`u{2705}"
+            Show-StatusBanner "Alle Jobs deaktiviert - bereit fuer Update" "#A6E3A1"
         }
 
         # Grid aktualisieren
@@ -650,6 +644,7 @@ $btnDisable.Add_Click({
 })
 
 $btnRestore.Add_Click({
+    Hide-StatusBanner
     $stateFilePath = Get-SelectedStateFilePath
     if (-not $stateFilePath -or -not (Test-Path $stateFilePath)) {
         [System.Windows.MessageBox]::Show(
