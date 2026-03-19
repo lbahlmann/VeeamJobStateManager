@@ -13,6 +13,15 @@
 
 $script:AppVersion = "1.1.0"
 
+# --- Umlaute sicher kodiert (unabhaengig von Datei-Encoding) ---
+$ae = [string][char]0xE4  # ae
+$oe = [string][char]0xF6  # oe
+$ue = [string][char]0xFC  # ue
+$Ae = [string][char]0xC4  # Ae
+$Oe = [string][char]0xD6  # Oe
+$Ue = [string][char]0xDC  # Ue
+$sz = [string][char]0xDF  # ss
+
 # --- WPF laden ---
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -105,7 +114,7 @@ catch {
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="Veeam Job State Manager"
                        FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-            <TextBlock Text="Job-Zustaende sichern, deaktivieren und wiederherstellen"
+            <TextBlock Text="Job-Zust&#xE4;nde sichern, deaktivieren und wiederherstellen"
                        FontSize="12" Foreground="#6C7086" Margin="0,4,0,0"/>
         </StackPanel>
 
@@ -151,7 +160,7 @@ catch {
                 <StackPanel>
                     <TextBlock Text="RESTORE" FontSize="16" FontWeight="Bold"
                                HorizontalAlignment="Center" Foreground="#A6E3A1"/>
-                    <TextBlock Text="Zustand wiederherstellen" FontSize="11"
+                    <TextBlock Text="Zustand wieder herstellen" FontSize="11"
                                HorizontalAlignment="Center" Foreground="#A6ADC8"/>
                 </StackPanel>
             </Button>
@@ -346,7 +355,7 @@ function Initialize-Veeam {
 
     # Pruefen ob Veeam-Cmdlets bereits verfuegbar sind (z.B. in Veeam PS Console)
     if (Get-Command "Get-VBRJob" -ErrorAction SilentlyContinue) {
-        Write-Log "Veeam Cmdlets bereits verfuegbar." "OK"
+        Write-Log "Veeam Cmdlets bereits verf${ue}gbar." "OK"
         $script:VeeamLoaded = $true
         return $true
     }
@@ -370,9 +379,9 @@ function Initialize-Veeam {
         return $true
     }
     catch {
-        Write-Log "Weder Veeam Modul noch Snap-in verfuegbar!" "FEHLER"
+        Write-Log "Weder Veeam Modul noch Snap-in verf${ue}gbar!" "FEHLER"
         [System.Windows.MessageBox]::Show(
-            "Veeam PowerShell konnte nicht geladen werden.`n`nWeder das Modul (v11+) noch das Snap-in (v9/v10) wurden gefunden.`n`nBitte dieses Tool direkt auf dem Veeam Backup Server ausfuehren.",
+            "Veeam PowerShell konnte nicht geladen werden.`n`nWeder das Modul (v11+) noch das Snap-in (v9/v10) wurden gefunden.`n`nBitte dieses Tool direkt auf dem Veeam Backup Server ausf${ue}hren.",
             "Veeam nicht gefunden",
             [System.Windows.MessageBoxButton]::OK,
             [System.Windows.MessageBoxImage]::Error
@@ -546,7 +555,7 @@ $btnDisable.Add_Click({
         Update-StateFileList
 
         # Laufende Jobs pruefen
-        Write-Log "Pruefe auf laufende Jobs..."
+        Write-Log "Pr${ue}fe auf laufende Jobs..."
         $runningJobs = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
 
         if ($runningJobs.Count -gt 0) {
@@ -596,7 +605,7 @@ $btnDisable.Add_Click({
                         if ($stillRunning.Count -eq 0) {
                             $script:watchTimer.Stop()
                             Write-Log "Alle laufenden Jobs beendet und deaktiviert!" "OK"
-                            Show-StatusBanner "Alle laufenden Jobs beendet und deaktiviert - bereit fuer Update" "#A6E3A1"
+                            Show-StatusBanner "Alle laufenden Jobs beendet und deaktiviert - bereit f${ue}r Update" "#A6E3A1"
                             Set-ButtonsEnabled $true
 
                             $updatedJobs = Get-AllVeeamJobs
@@ -604,8 +613,8 @@ $btnDisable.Add_Click({
                             Update-StateFileList
 
                             [System.Windows.MessageBox]::Show(
-                                "$($script:watchDisabledCount) Jobs deaktiviert.`nAlle laufenden Jobs beendet und deaktiviert.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
-                                "Bereit fuer Update",
+                                "$($script:watchDisabledCount) Jobs deaktiviert.`nAlle laufenden Jobs beendet und deaktiviert.`n`nDas Veeam Update kann jetzt durchgef${ue}hrt werden.`n`nNach dem Update: RESTORE druecken.",
+                                "Bereit f${ue}r Update",
                                 [System.Windows.MessageBoxButton]::OK,
                                 [System.Windows.MessageBoxImage]::Information
                             )
@@ -619,7 +628,7 @@ $btnDisable.Add_Click({
                         }
                     }
                     catch {
-                        Write-Log "Fehler beim Pruefen: $($_.Exception.Message)" "FEHLER"
+                        Write-Log "Fehler beim Pr${ue}fen: $($_.Exception.Message)" "FEHLER"
                     }
                 })
                 $script:watchTimer.Start()
@@ -632,7 +641,7 @@ $btnDisable.Add_Click({
         }
         else {
             Write-Log "Keine laufenden Jobs." "OK"
-            Show-StatusBanner "Alle Jobs deaktiviert - bereit fuer Update" "#A6E3A1"
+            Show-StatusBanner "Alle Jobs deaktiviert - bereit f${ue}r Update" "#A6E3A1"
         }
 
         # Grid aktualisieren
@@ -642,8 +651,8 @@ $btnDisable.Add_Click({
 
         Write-Log "$successCount Jobs deaktiviert." "OK"
         [System.Windows.MessageBox]::Show(
-            "$successCount Jobs deaktiviert.`nKeine laufenden Jobs.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
-            "Bereit fuer Update",
+            "$successCount Jobs deaktiviert.`nKeine laufenden Jobs.`n`nDas Veeam Update kann jetzt durchgef${ue}hrt werden.`n`nNach dem Update: RESTORE druecken.",
+            "Bereit f${ue}r Update",
             [System.Windows.MessageBoxButton]::OK,
             [System.Windows.MessageBoxImage]::Information
         )
@@ -661,7 +670,7 @@ $btnRestore.Add_Click({
     $stateFilePath = Get-SelectedStateFilePath
     if (-not $stateFilePath -or -not (Test-Path $stateFilePath)) {
         [System.Windows.MessageBox]::Show(
-            "Keine Zustandsdatei ausgewaehlt.`n`nBitte zuerst SAVE ausfuehren oder eine Datei auswaehlen.",
+            "Keine Zustandsdatei ausgew${ae}hlt.`n`nBitte zuerst SAVE ausf${ue}hren oder eine Datei auswaehlen.",
             "Keine Datei",
             [System.Windows.MessageBoxButton]::OK,
             [System.Windows.MessageBoxImage]::Warning
@@ -673,7 +682,7 @@ $btnRestore.Add_Click({
     $jobsToEnable = @($stateData.Jobs | Where-Object { $_.IsEnabled -eq $true })
     $jobsToKeepDisabled = @($stateData.Jobs | Where-Object { $_.IsEnabled -eq $false })
 
-    $msg = "Zustand wiederherstellen aus:`n$($cmbStateFiles.SelectedItem)`n`n"
+    $msg = "Zustand wieder herstellen aus:`n$($cmbStateFiles.SelectedItem)`n`n"
     $msg += "Gespeichert am: $($stateData.SavedAt)`n"
     $msg += "Server: $($stateData.ServerName)`n`n"
     $msg += "$($jobsToEnable.Count) Jobs werden aktiviert`n"
@@ -684,7 +693,7 @@ $btnRestore.Add_Click({
     }
     $msg += "Fortfahren?"
 
-    $result = [System.Windows.MessageBox]::Show($msg, "Zustand wiederherstellen",
+    $result = [System.Windows.MessageBox]::Show($msg, "Zustand wieder herstellen",
         [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
     if ($result -ne [System.Windows.MessageBoxResult]::Yes) { return }
 
