@@ -261,23 +261,26 @@ function Get-SelectedStateFilePath {
 
 function Update-JobGrid {
     param($Jobs)
-    $displayJobs = @()
-    foreach ($job in ($Jobs | Sort-Object Name)) {
-        $statusText = if ($job.IsEnabled) { "Aktiv" } else { "Inaktiv" }
-        $displayJobs += [PSCustomObject]@{
-            Name       = $job.Name
-            Type       = $job.Type
-            StatusText = $statusText
-            IsEnabled  = $job.IsEnabled
-        }
+    $jobArray = @($Jobs)
+    $displayList = New-Object System.Collections.ArrayList
+    foreach ($job in ($jobArray | Sort-Object Name)) {
+        $isEnabled = [bool]$job.IsEnabled
+        $statusText = if ($isEnabled) { "Aktiv" } else { "Inaktiv" }
+        $displayList.Add([PSCustomObject]@{
+            Name       = [string]$job.Name
+            Type       = [string]$job.Type
+            StatusText = [string]$statusText
+            IsEnabled  = $isEnabled
+        }) | Out-Null
     }
-    $dgJobs.ItemsSource = $displayJobs
+    $dgJobs.ItemsSource = $displayList
 
-    $enabled = ($Jobs | Where-Object { $_.IsEnabled -eq $true }).Count
-    $disabled = ($Jobs | Where-Object { $_.IsEnabled -eq $false }).Count
+    $enabled = @($jobArray | Where-Object { $_.IsEnabled -eq $true }).Count
+    $disabled = @($jobArray | Where-Object { $_.IsEnabled -eq $false }).Count
+    $total = $jobArray.Count
     $txtEnabledCount.Text = "Aktiv: $enabled"
     $txtDisabledCount.Text = "Inaktiv: $disabled"
-    $txtTotalCount.Text = "Gesamt: $($Jobs.Count)"
+    $txtTotalCount.Text = "Gesamt: $total"
 }
 
 # --- Veeam Funktionen ---
