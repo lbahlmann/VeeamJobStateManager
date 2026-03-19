@@ -89,6 +89,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="180"/>
@@ -102,8 +103,19 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
                        FontSize="12" Foreground="#6C7086" Margin="0,4,0,0"/>
         </StackPanel>
 
+        <!-- Status Banner -->
+        <Border x:Name="pnlStatusBanner" Grid.Row="1" Background="#F9E2AF" CornerRadius="6"
+                Padding="16,10" Margin="0,0,0,12" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="txtStatusIcon" Text="&#x23F3;" FontSize="18"
+                           VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#1E1E2E"/>
+                <TextBlock x:Name="txtStatusBanner" Text="" FontSize="15" FontWeight="Bold"
+                           VerticalAlignment="Center" Foreground="#1E1E2E"/>
+            </StackPanel>
+        </Border>
+
         <!-- Buttons -->
-        <Grid Grid.Row="1" Margin="0,0,0,16">
+        <Grid Grid.Row="2" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="12"/>
@@ -144,7 +156,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         </Grid>
 
         <!-- State File Auswahl -->
-        <Grid Grid.Row="2" Margin="0,0,0,12">
+        <Grid Grid.Row="3" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -161,7 +173,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         </Grid>
 
         <!-- Job-Tabelle -->
-        <DataGrid x:Name="dgJobs" Grid.Row="3" Margin="0,0,0,12"
+        <DataGrid x:Name="dgJobs" Grid.Row="4" Margin="0,0,0,12"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   Background="#313244" Foreground="#CDD6F4"
                   BorderBrush="#45475A" BorderThickness="1"
@@ -187,7 +199,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         </DataGrid>
 
         <!-- Status Bar -->
-        <Grid Grid.Row="4" Margin="0,0,0,8">
+        <Grid Grid.Row="5" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -212,7 +224,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         </Grid>
 
         <!-- Log -->
-        <Border Grid.Row="5" Background="#181825" CornerRadius="6" BorderBrush="#45475A" BorderThickness="1">
+        <Border Grid.Row="6" Background="#181825" CornerRadius="6" BorderBrush="#45475A" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -241,6 +253,9 @@ $btnDisable = $window.FindName("btnDisable")
 $btnRestore = $window.FindName("btnRestore")
 $btnRefreshFiles = $window.FindName("btnRefreshFiles")
 $cmbStateFiles = $window.FindName("cmbStateFiles")
+$pnlStatusBanner = $window.FindName("pnlStatusBanner")
+$txtStatusBanner = $window.FindName("txtStatusBanner")
+$txtStatusIcon = $window.FindName("txtStatusIcon")
 $dgJobs = $window.FindName("dgJobs")
 $txtLog = $window.FindName("txtLog")
 $txtEnabledCount = $window.FindName("txtEnabledCount")
@@ -263,6 +278,20 @@ function Set-ButtonsEnabled {
     $btnSave.IsEnabled = $Enabled
     $btnDisable.IsEnabled = $Enabled
     $btnRestore.IsEnabled = $Enabled
+}
+
+function Show-StatusBanner {
+    param([string]$Text, [string]$Color = "#F9E2AF", [string]$Icon = "`u{23F3}")
+    $pnlStatusBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Color)
+    $txtStatusBanner.Text = $Text
+    $txtStatusIcon.Text = $Icon
+    $pnlStatusBanner.Visibility = "Visible"
+    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Hide-StatusBanner {
+    $pnlStatusBanner.Visibility = "Collapsed"
+    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
 function Update-StateFileList {
@@ -527,17 +556,26 @@ $btnDisable.Add_Click({
             if ($waitResult -eq [System.Windows.MessageBoxResult]::Yes) {
                 Write-Log "Warte auf $($runningJobs.Count) laufende Jobs..." "INFO"
                 $disabledAfterRun = 0
+                $runNames = ($runningJobs | ForEach-Object { $_.Name }) -join ", "
+                Show-StatusBanner "Warte auf $($runningJobs.Count) laufende Jobs: $runNames"
 
                 while ($true) {
-                    Start-Sleep -Seconds 10
-                    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+                    # UI-responsive warten: 10x 1s statt 1x 10s
+                    for ($i = 0; $i -lt 10; $i++) {
+                        Start-Sleep -Milliseconds 1000
+                        $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+                    }
 
                     # Pruefen welche Jobs gerade fertig geworden sind
                     $allJobs = @(Get-VBRJob)
                     $stillRunning = @($allJobs | Where-Object { $_.GetLastState() -eq "Working" })
+
+                    # Nur Jobs disablen die vorher liefen und jetzt fertig sind
+                    $runningNames = $runningJobs | ForEach-Object { $_.Name }
                     $justFinished = @($allJobs | Where-Object {
                         $_.GetLastState() -ne "Working" -and
-                        $_.IsScheduleEnabled -eq $true
+                        $_.IsScheduleEnabled -eq $true -and
+                        $runningNames -contains $_.Name
                     })
 
                     # Gerade fertig gewordene sofort disablen
@@ -546,6 +584,8 @@ $btnDisable.Add_Click({
                             $fJob | Disable-VBRJob | Out-Null
                             Write-Log "$($fJob.Name) fertig --> deaktiviert" "OK"
                             $disabledAfterRun++
+                            # Aus Tracking-Liste entfernen damit nicht nochmal disabled
+                            $runningJobs = @($runningJobs | Where-Object { $_.Name -ne $fJob.Name })
                         }
                         catch {
                             Write-Log "$($fJob.Name) deaktivieren fehlgeschlagen: $($_.Exception.Message)" "FEHLER"
@@ -554,10 +594,13 @@ $btnDisable.Add_Click({
 
                     if ($stillRunning.Count -eq 0) {
                         Write-Log "Alle Jobs beendet und deaktiviert!" "OK"
+                        Hide-StatusBanner
+                        Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1" "`u{2705}"
                         break
                     }
 
                     $runNames = ($stillRunning | ForEach-Object { $_.Name }) -join ", "
+                    Show-StatusBanner "Warte auf $($stillRunning.Count) laufende Jobs: $runNames"
                     Write-Log "Warte auf $($stillRunning.Count) Jobs: $runNames" "INFO"
                 }
 
@@ -569,6 +612,7 @@ $btnDisable.Add_Click({
         }
         else {
             Write-Log "Keine laufenden Jobs." "OK"
+            Show-StatusBanner "Alle Jobs deaktiviert - bereit fuer Update" "#A6E3A1" "`u{2705}"
         }
 
         # Grid aktualisieren
