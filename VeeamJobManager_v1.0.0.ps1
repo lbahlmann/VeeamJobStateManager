@@ -58,6 +58,30 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+        <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#45475A"/>
+                    <Setter Property="Foreground" Value="#CDD6F4"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#585B70"/>
+                    <Setter Property="Foreground" Value="#CDD6F4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -128,8 +152,9 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Zustandsdatei:" Foreground="#A6ADC8"
                        VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
-            <ComboBox x:Name="cmbStateFiles" Grid.Column="1" Height="30" FontSize="12"
-                      Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"/>
+            <ComboBox x:Name="cmbStateFiles" Grid.Column="1"
+                      Style="{StaticResource DarkComboBox}"
+                      ItemContainerStyle="{StaticResource DarkComboBoxItem}"/>
             <Button x:Name="btnRefreshFiles" Grid.Column="2" Content="&#x1F504;" Width="30" Height="30"
                     Background="#45475A" Foreground="#CDD6F4" BorderThickness="0" Cursor="Hand"
                     Margin="8,0,0,0" FontSize="14"/>
