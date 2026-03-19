@@ -13,16 +13,6 @@
 
 $script:AppVersion = "1.0.0"
 
-# --- Konsolenfenster verstecken ---
-Add-Type -Name Window -Namespace Console -MemberDefinition '
-[DllImport("Kernel32.dll")]
-public static extern IntPtr GetConsoleWindow();
-[DllImport("user32.dll")]
-public static extern bool ShowWindow(IntPtr hWnd, Int32 nCmdShow);
-'
-$consolePtr = [Console.Window]::GetConsoleWindow()
-[Console.Window]::ShowWindow($consolePtr, 0) | Out-Null
-
 # --- WPF laden ---
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -240,7 +230,6 @@ function Write-Log {
     $timestamp = Get-Date -Format "HH:mm:ss"
     $txtLog.AppendText("[$timestamp] $Level - $Message`r`n")
     $txtLog.ScrollToEnd()
-    [System.Windows.Forms.Application]::DoEvents() 2>$null
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
@@ -274,10 +263,11 @@ function Update-JobGrid {
     param($Jobs)
     $displayJobs = @()
     foreach ($job in ($Jobs | Sort-Object Name)) {
+        $statusText = if ($job.IsEnabled) { "Aktiv" } else { "Inaktiv" }
         $displayJobs += [PSCustomObject]@{
             Name       = $job.Name
             Type       = $job.Type
-            StatusText = if ($job.IsEnabled) { "Aktiv" } else { "Inaktiv" }
+            StatusText = $statusText
             IsEnabled  = $job.IsEnabled
         }
     }
@@ -587,24 +577,44 @@ $btnRefreshFiles.Add_Click({
     Write-Log "Dateiliste aktualisiert."
 })
 
-# --- Init ---
-$txtServer.Text = "Server: $($env:COMPUTERNAME)"
-Update-StateFileList
-$window.Title = "Veeam Job State Manager v$($script:AppVersion) - Ambrian"
-Write-Log "Veeam Job State Manager v$($script:AppVersion) gestartet."
-Write-Log "Arbeitsverzeichnis: $ScriptDir"
+# --- Konsolenfenster verstecken ---
+Add-Type -Name Window -Namespace Console -MemberDefinition '
+[DllImport("Kernel32.dll")]
+public static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll")]
+public static extern bool ShowWindow(IntPtr hWnd, Int32 nCmdShow);
+'
+$consolePtr = [Console.Window]::GetConsoleWindow()
+[Console.Window]::ShowWindow($consolePtr, 0) | Out-Null
 
-# Wenn State-Dateien vorhanden, letzte laden und in Grid anzeigen
-$latestFile = Get-SelectedStateFilePath
-if ($latestFile -and (Test-Path $latestFile)) {
-    try {
-        $existingState = Get-Content -Path $latestFile -Raw | ConvertFrom-Json
-        Update-JobGrid $existingState.Jobs
-        Write-Log "Letzte Sicherung geladen: $($cmbStateFiles.SelectedItem) ($($existingState.SavedAt))"
+# --- Init ---
+try {
+    $txtServer.Text = "Server: $($env:COMPUTERNAME)"
+    Update-StateFileList
+    $window.Title = "Veeam Job State Manager v$($script:AppVersion) - Ambrian"
+    Write-Log "Veeam Job State Manager v$($script:AppVersion) gestartet."
+    Write-Log "Arbeitsverzeichnis: $ScriptDir"
+
+    # Wenn State-Dateien vorhanden, letzte laden und in Grid anzeigen
+    $latestFile = Get-SelectedStateFilePath
+    if ($latestFile -and (Test-Path $latestFile)) {
+        try {
+            $existingState = Get-Content -Path $latestFile -Raw | ConvertFrom-Json
+            Update-JobGrid $existingState.Jobs
+            Write-Log "Letzte Sicherung geladen: $($cmbStateFiles.SelectedItem) ($($existingState.SavedAt))"
+        }
+        catch {
+            Write-Log "Konnte letzte Sicherung nicht laden." "WARNUNG"
+        }
     }
-    catch {
-        Write-Log "Konnte letzte Sicherung nicht laden." "WARNUNG"
-    }
+}
+catch {
+    [System.Windows.MessageBox]::Show(
+        "Fehler beim Initialisieren:`n`n$($_.Exception.Message)",
+        "Startfehler",
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Error
+    )
 }
 
 # --- Window anzeigen ---
