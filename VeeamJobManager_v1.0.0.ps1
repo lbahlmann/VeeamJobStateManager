@@ -484,21 +484,74 @@ $btnDisable.Add_Click({
             }
         }
 
+        Write-Log "Fertig: $successCount deaktiviert, $errorCount Fehler" $(if ($errorCount -gt 0) { "WARNUNG" } else { "OK" })
+
+        # Laufende Jobs stoppen
+        Write-Log "Pruefe auf laufende Jobs..."
+        $runningJobs = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
+        $stoppedCount = 0
+        $stopErrors = 0
+
+        if ($runningJobs.Count -gt 0) {
+            Write-Log "$($runningJobs.Count) Jobs laufen noch, stoppe diese..." "INFO"
+            foreach ($rJob in $runningJobs) {
+                try {
+                    Write-Log "Stoppe $($rJob.Name)..." "INFO"
+                    Stop-VBRJob -Job $rJob | Out-Null
+                    Write-Log "$($rJob.Name) gestoppt" "OK"
+                    $stoppedCount++
+                }
+                catch {
+                    Write-Log "$($rJob.Name) stoppen fehlgeschlagen: $($_.Exception.Message)" "FEHLER"
+                    $stopErrors++
+                }
+            }
+
+            # Warten bis alle Jobs wirklich gestoppt sind
+            Write-Log "Warte auf Beendigung der Jobs..."
+            $maxWait = 120
+            $waited = 0
+            while ($waited -lt $maxWait) {
+                $stillRunning = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
+                if ($stillRunning.Count -eq 0) { break }
+                Write-Log "Noch $($stillRunning.Count) Jobs aktiv, warte... ($waited s)" "INFO"
+                Start-Sleep -Seconds 5
+                $waited += 5
+                $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+            }
+
+            if ($waited -ge $maxWait) {
+                $stillRunning = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
+                if ($stillRunning.Count -gt 0) {
+                    $names = ($stillRunning | ForEach-Object { $_.Name }) -join ", "
+                    Write-Log "TIMEOUT: Diese Jobs laufen noch: $names" "WARNUNG"
+                }
+            }
+        }
+        else {
+            Write-Log "Keine laufenden Jobs gefunden." "OK"
+        }
+
         # Grid aktualisieren
         $updatedJobs = Get-AllVeeamJobs
         Update-JobGrid $updatedJobs
         Update-StateFileList
 
-        Write-Log "Fertig: $successCount deaktiviert, $errorCount Fehler" $(if ($errorCount -gt 0) { "WARNUNG" } else { "OK" })
+        $summary = "$successCount Jobs deaktiviert"
+        if ($stoppedCount -gt 0) { $summary += ", $stoppedCount gestoppt" }
+        if (($errorCount + $stopErrors) -gt 0) { $summary += ", $($errorCount + $stopErrors) Fehler" }
+        Write-Log $summary "OK"
 
-        if ($errorCount -eq 0) {
-            [System.Windows.MessageBox]::Show(
-                "$successCount Jobs deaktiviert.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
-                "Erfolgreich",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information
-            )
-        }
+        $msgText = "$successCount Jobs deaktiviert."
+        if ($stoppedCount -gt 0) { $msgText += "`n$stoppedCount laufende Jobs gestoppt." }
+        $msgText += "`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken."
+
+        [System.Windows.MessageBox]::Show(
+            $msgText,
+            "Erfolgreich",
+            [System.Windows.MessageBoxButton]::OK,
+            $(if (($errorCount + $stopErrors) -gt 0) { [System.Windows.MessageBoxImage]::Warning } else { [System.Windows.MessageBoxImage]::Information })
+        )
     }
     catch {
         Write-Log "Fehler: $($_.Exception.Message)" "FEHLER"
