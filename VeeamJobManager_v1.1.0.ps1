@@ -818,22 +818,20 @@ try {
             Write-Log "Letzte Sicherung geladen: $($cmbStateFiles.SelectedItem) ($($existingState.SavedAt))"
 
             # Warnung bei abgebrochenem Vorgang
-            if ($existingState.Status -eq "Aborted") {
-                Write-Log "WARNUNG: Letzter Vorgang wurde abgebrochen! $($existingState.StatusDetail)" "FEHLER"
-                Show-StatusBanner "WARNUNG: Letzter Vorgang abgebrochen - nicht alle Jobs wurden deaktiviert!" "#F38BA8"
-                [System.Windows.MessageBox]::Show(
-                    "Der letzte Disable-Vorgang wurde abgebrochen!`n`n$($existingState.StatusDetail)`n`nDiese Jobs wurden m${oe}glicherweise NICHT deaktiviert und laufen noch.`n`nBitte pr${ue}fen und ggf. erneut DISABLE ALL ausf${ue}hren oder RESTORE zum Wiederherstellen.",
-                    "Abbruch erkannt",
-                    [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Warning
-                )
-            }
-            elseif ($existingState.Status -eq "WaitingForJobs" -or $existingState.Status -eq "InProgress") {
-                Write-Log "WARNUNG: Letzter Vorgang nicht abgeschlossen! Status: $($existingState.Status)" "FEHLER"
+            if ($existingState.Status -eq "Aborted" -or $existingState.Status -eq "WaitingForJobs" -or $existingState.Status -eq "InProgress") {
+                $detail = $existingState.StatusDetail
+                Write-Log "WARNUNG: Letzter Vorgang nicht abgeschlossen! $detail" "FEHLER"
                 Show-StatusBanner "WARNUNG: Letzter Vorgang nicht abgeschlossen!" "#F38BA8"
+                $abortMsg = "Der letzte Disable-Vorgang wurde nicht abgeschlossen!`n`n"
+                $abortMsg += "$detail`n`n"
+                $abortMsg += "Diese Jobs liefen beim Abbruch noch und wurden danach nicht mehr deaktiviert.`n`n"
+                $abortMsg += "Empfehlung:`n"
+                $abortMsg += "- RESTORE dr" + $ue + "cken um den Originalzustand wiederherzustellen`n"
+                $abortMsg += "- Oder erneut DISABLE ALL ausf" + $ue + "hren"
+                $abortTitle = "Unvollst" + $ae + "ndiger Vorgang erkannt"
                 [System.Windows.MessageBox]::Show(
-                    "Der letzte Vorgang wurde nicht sauber abgeschlossen!`n`nStatus: $($existingState.Status)`n$($existingState.StatusDetail)`n`nBitte pr${ue}fen und ggf. erneut DISABLE ALL ausf${ue}hren oder RESTORE zum Wiederherstellen.",
-                    "Unvollst${ae}ndiger Vorgang",
+                    $abortMsg,
+                    $abortTitle,
                     [System.Windows.MessageBoxButton]::OK,
                     [System.Windows.MessageBoxImage]::Warning
                 )
