@@ -540,6 +540,11 @@ $btnDisable.Add_Click({
 
         Write-Log "Fertig: $successCount deaktiviert, $errorCount Fehler" $(if ($errorCount -gt 0) { "WARNUNG" } else { "OK" })
 
+        # Grid und Dropdown sofort aktualisieren
+        $currentJobs = Get-AllVeeamJobs
+        Update-JobGrid $currentJobs
+        Update-StateFileList
+
         # Laufende Jobs pruefen
         Write-Log "Pruefe auf laufende Jobs..."
         $runningJobs = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
