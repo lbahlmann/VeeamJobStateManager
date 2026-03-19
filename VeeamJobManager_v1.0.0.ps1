@@ -286,26 +286,42 @@ $script:VeeamLoaded = $false
 
 function Initialize-Veeam {
     if ($script:VeeamLoaded) { return $true }
-    if (-not (Get-PSSnapin -Name VeeamPSSnapIn -ErrorAction SilentlyContinue)) {
-        try {
-            Add-PSSnapin VeeamPSSnapIn
-            Write-Log "Veeam PowerShell Snap-in geladen." "OK"
-            $script:VeeamLoaded = $true
-            return $true
-        }
-        catch {
-            Write-Log "Veeam Snap-in nicht verfuegbar. Bitte auf dem Veeam Server ausfuehren!" "FEHLER"
-            [System.Windows.MessageBox]::Show(
-                "Veeam PowerShell Snap-in konnte nicht geladen werden.`n`nBitte dieses Tool direkt auf dem Veeam Backup Server ausfuehren.",
-                "Veeam nicht gefunden",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Error
-            )
-            return $false
-        }
+
+    # Pruefen ob Veeam-Cmdlets bereits verfuegbar sind (z.B. in Veeam PS Console)
+    if (Get-Command "Get-VBRJob" -ErrorAction SilentlyContinue) {
+        Write-Log "Veeam Cmdlets bereits verfuegbar." "OK"
+        $script:VeeamLoaded = $true
+        return $true
     }
-    $script:VeeamLoaded = $true
-    return $true
+
+    # Versuch 1: PowerShell-Modul (Veeam v11+)
+    try {
+        Import-Module Veeam.Backup.PowerShell -ErrorAction Stop
+        Write-Log "Veeam PowerShell Modul geladen (v11+)." "OK"
+        $script:VeeamLoaded = $true
+        return $true
+    }
+    catch {
+        Write-Log "Veeam Modul nicht gefunden, versuche Snap-in..." "INFO"
+    }
+
+    # Versuch 2: PSSnapin (Veeam v9/v10)
+    try {
+        Add-PSSnapin VeeamPSSnapIn -ErrorAction Stop
+        Write-Log "Veeam PowerShell Snap-in geladen." "OK"
+        $script:VeeamLoaded = $true
+        return $true
+    }
+    catch {
+        Write-Log "Weder Veeam Modul noch Snap-in verfuegbar!" "FEHLER"
+        [System.Windows.MessageBox]::Show(
+            "Veeam PowerShell konnte nicht geladen werden.`n`nWeder das Modul (v11+) noch das Snap-in (v9/v10) wurden gefunden.`n`nBitte dieses Tool direkt auf dem Veeam Backup Server ausfuehren.",
+            "Veeam nicht gefunden",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        )
+        return $false
+    }
 }
 
 function Get-AllVeeamJobs {
