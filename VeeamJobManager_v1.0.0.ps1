@@ -7,7 +7,7 @@
     und stellt den Originalzustand danach wieder her.
 .NOTES
     Version: 1.0.0
-    Autor:   Ambrian GmbH
+    Autor:   badata GmbH
     Datei:   VeeamJobManager_v1.0.0.ps1
 #>
 
@@ -26,7 +26,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Veeam Job State Manager v1.0.0 - Ambrian"
+        Title="Veeam Job State Manager v1.0.0"
         Width="900" Height="700"
         MinWidth="750" MinHeight="550"
         WindowStartupLocation="CenterScreen"
@@ -74,7 +74,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="Veeam Job State Manager"
                        FontSize="24" FontWeight="Bold" Foreground="#CDD6F4"/>
-            <TextBlock Text="Ambrian - Job-Zustaende sichern, deaktivieren und wiederherstellen"
+            <TextBlock Text="Job-Zustaende sichern, deaktivieren und wiederherstellen"
                        FontSize="12" Foreground="#6C7086" Margin="0,4,0,0"/>
         </StackPanel>
 
@@ -591,7 +591,7 @@ $consolePtr = [Console.Window]::GetConsoleWindow()
 try {
     $txtServer.Text = "Server: $($env:COMPUTERNAME)"
     Update-StateFileList
-    $window.Title = "Veeam Job State Manager v$($script:AppVersion) - Ambrian"
+    $window.Title = "Veeam Job State Manager v$($script:AppVersion)"
     Write-Log "Veeam Job State Manager v$($script:AppVersion) gestartet."
     Write-Log "Arbeitsverzeichnis: $ScriptDir"
 
