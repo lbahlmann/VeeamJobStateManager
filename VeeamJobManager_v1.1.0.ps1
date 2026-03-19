@@ -313,6 +313,21 @@ function Hide-StatusBanner {
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
+function Update-StateFileStatus {
+    param([string]$FilePath, [string]$Status, [string]$Detail = "")
+    if (-not $FilePath -or -not (Test-Path $FilePath)) { return }
+    try {
+        $data = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
+        $data | Add-Member -NotePropertyName "Status" -NotePropertyValue $Status -Force
+        if ($Detail) {
+            $data | Add-Member -NotePropertyName "StatusDetail" -NotePropertyValue $Detail -Force
+        }
+        $data | Add-Member -NotePropertyName "StatusTime" -NotePropertyValue (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") -Force
+        $data | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath -Encoding UTF8
+    }
+    catch {}
+}
+
 function Update-StateFileList {
     $cmbStateFiles.Items.Clear()
     $files = Get-ChildItem -Path $ScriptDir -Filter "VeeamJobState_*.json" -ErrorAction SilentlyContinue |
@@ -514,12 +529,16 @@ $btnDisable.Add_Click({
         $outFile = Join-Path $ScriptDir "VeeamJobState_${script:FQDN}_$timestamp.json"
 
         $state = [PSCustomObject]@{
-            SavedAt    = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServerName = $script:FQDN
-            JobCount   = $jobs.Count
-            Jobs       = $jobs
+            SavedAt      = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+            ServerName   = $script:FQDN
+            JobCount     = $jobs.Count
+            Status       = "InProgress"
+            StatusDetail = "Disable gestartet"
+            StatusTime   = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+            Jobs         = $jobs
         }
         $state | ConvertTo-Json -Depth 5 | Out-File -FilePath $outFile -Encoding UTF8
+        $script:currentStateFile = $outFile
         Write-Log "Zustand gesichert in: $outFile" "OK"
 
         # Jetzt deaktivieren
@@ -615,6 +634,7 @@ $btnDisable.Add_Click({
                         if ($stillRunning.Count -eq 0) {
                             $script:watchTimer.Stop()
                             $script:watchTimerActive = $false
+                            Update-StateFileStatus $script:currentStateFile "Complete" "Alle Jobs deaktiviert"
                             Write-Log "Alle laufenden Jobs beendet und deaktiviert!" "OK"
                             Show-StatusBanner "Alle laufenden Jobs beendet und deaktiviert - bereit f${ue}r Update" "#A6E3A1"
                             Set-ButtonsEnabled $true
@@ -643,6 +663,8 @@ $btnDisable.Add_Click({
                     }
                 })
                 $script:watchTimerActive = $true
+                $runNamesForState = ($runningJobs | ForEach-Object { $_.Name }) -join ", "
+                Update-StateFileStatus $script:currentStateFile "WaitingForJobs" "Warte auf: $runNamesForState"
                 $script:watchTimer.Start()
                 # Buttons bleiben disabled aber UI ist bedienbar (Fenster schliessen etc.)
                 return
@@ -654,6 +676,7 @@ $btnDisable.Add_Click({
         else {
             Write-Log "Keine laufenden Jobs." "OK"
             Show-StatusBanner "Alle Jobs deaktiviert - bereit f${ue}r Update" "#A6E3A1"
+            Update-StateFileStatus $script:currentStateFile "Complete" "Alle Jobs deaktiviert"
         }
 
         # Grid aktualisieren
@@ -793,6 +816,28 @@ try {
             $existingState = Get-Content -Path $latestFile -Raw | ConvertFrom-Json
             Update-JobGrid $existingState.Jobs
             Write-Log "Letzte Sicherung geladen: $($cmbStateFiles.SelectedItem) ($($existingState.SavedAt))"
+
+            # Warnung bei abgebrochenem Vorgang
+            if ($existingState.Status -eq "Aborted") {
+                Write-Log "WARNUNG: Letzter Vorgang wurde abgebrochen! $($existingState.StatusDetail)" "FEHLER"
+                Show-StatusBanner "WARNUNG: Letzter Vorgang abgebrochen - nicht alle Jobs wurden deaktiviert!" "#F38BA8"
+                [System.Windows.MessageBox]::Show(
+                    "Der letzte Disable-Vorgang wurde abgebrochen!`n`n$($existingState.StatusDetail)`n`nDiese Jobs wurden m${oe}glicherweise NICHT deaktiviert und laufen noch.`n`nBitte pr${ue}fen und ggf. erneut DISABLE ALL ausf${ue}hren oder RESTORE zum Wiederherstellen.",
+                    "Abbruch erkannt",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Warning
+                )
+            }
+            elseif ($existingState.Status -eq "WaitingForJobs" -or $existingState.Status -eq "InProgress") {
+                Write-Log "WARNUNG: Letzter Vorgang nicht abgeschlossen! Status: $($existingState.Status)" "FEHLER"
+                Show-StatusBanner "WARNUNG: Letzter Vorgang nicht abgeschlossen!" "#F38BA8"
+                [System.Windows.MessageBox]::Show(
+                    "Der letzte Vorgang wurde nicht sauber abgeschlossen!`n`nStatus: $($existingState.Status)`n$($existingState.StatusDetail)`n`nBitte pr${ue}fen und ggf. erneut DISABLE ALL ausf${ue}hren oder RESTORE zum Wiederherstellen.",
+                    "Unvollst${ae}ndiger Vorgang",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Warning
+                )
+            }
         }
         catch {
             Write-Log "Konnte letzte Sicherung nicht laden." "WARNUNG"
@@ -812,6 +857,9 @@ catch {
 $window.Add_Closing({
     if ($script:watchTimer -and $script:watchTimer.IsEnabled) {
         $script:watchTimer.Stop()
+        $script:watchTimerActive = $false
+        $stillRunning = @($script:watchRunningJobs) -join ", "
+        Update-StateFileStatus $script:currentStateFile "Aborted" "Abgebrochen. Noch laufende Jobs: $stillRunning"
     }
 })
 
