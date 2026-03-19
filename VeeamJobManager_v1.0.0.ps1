@@ -549,56 +549,71 @@ $btnDisable.Add_Click({
 
             if ($waitResult -eq [System.Windows.MessageBoxResult]::Yes) {
                 Write-Log "Warte auf $($runningJobs.Count) laufende Jobs..." "INFO"
-                $disabledAfterRun = 0
                 $runNames = ($runningJobs | ForEach-Object { $_.Name }) -join ", "
                 Show-StatusBanner "Warte auf $($runningJobs.Count) laufende Jobs: $runNames"
 
-                while ($true) {
-                    # UI-responsive warten: 10x 1s statt 1x 10s
-                    for ($i = 0; $i -lt 10; $i++) {
-                        Start-Sleep -Milliseconds 1000
-                        $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
-                    }
+                # Timer statt Loop -- UI bleibt bedienbar (Fenster schliessen etc.)
+                $script:watchRunningJobs = [System.Collections.ArrayList]@($runningJobs | ForEach-Object { $_.Name })
+                $script:watchDisabledCount = $successCount
+                $script:watchStartTime = Get-Date
+                $script:watchTimer = New-Object System.Windows.Threading.DispatcherTimer
+                $script:watchTimer.Interval = [TimeSpan]::FromSeconds(10)
+                $script:watchTimer.Add_Tick({
+                    try {
+                        $allJobs = @(Get-VBRJob)
+                        $stillRunning = @($allJobs | Where-Object { $_.GetLastState() -eq "Working" })
 
-                    # Pruefen welche Jobs gerade fertig geworden sind
-                    $allJobs = @(Get-VBRJob)
-                    $stillRunning = @($allJobs | Where-Object { $_.GetLastState() -eq "Working" })
+                        # Nur Jobs disablen die wir tracken und die jetzt fertig sind
+                        $justFinished = @($allJobs | Where-Object {
+                            $_.GetLastState() -ne "Working" -and
+                            $_.IsScheduleEnabled -eq $true -and
+                            $script:watchRunningJobs -contains $_.Name
+                        })
 
-                    # Nur Jobs disablen die vorher liefen und jetzt fertig sind
-                    $runningNames = $runningJobs | ForEach-Object { $_.Name }
-                    $justFinished = @($allJobs | Where-Object {
-                        $_.GetLastState() -ne "Working" -and
-                        $_.IsScheduleEnabled -eq $true -and
-                        $runningNames -contains $_.Name
-                    })
-
-                    # Gerade fertig gewordene sofort disablen
-                    foreach ($fJob in $justFinished) {
-                        try {
-                            $fJob | Disable-VBRJob | Out-Null
-                            Write-Log "$($fJob.Name) fertig --> deaktiviert" "OK"
-                            $disabledAfterRun++
-                            # Aus Tracking-Liste entfernen damit nicht nochmal disabled
-                            $runningJobs = @($runningJobs | Where-Object { $_.Name -ne $fJob.Name })
+                        foreach ($fJob in $justFinished) {
+                            try {
+                                $fJob | Disable-VBRJob | Out-Null
+                                Write-Log "$($fJob.Name) fertig --> deaktiviert" "OK"
+                                $script:watchRunningJobs.Remove($fJob.Name)
+                                $script:watchDisabledCount++
+                            }
+                            catch {
+                                Write-Log "$($fJob.Name) deaktivieren fehlgeschlagen: $($_.Exception.Message)" "FEHLER"
+                            }
                         }
-                        catch {
-                            Write-Log "$($fJob.Name) deaktivieren fehlgeschlagen: $($_.Exception.Message)" "FEHLER"
+
+                        if ($stillRunning.Count -eq 0) {
+                            $script:watchTimer.Stop()
+                            Write-Log "Alle Jobs beendet und deaktiviert!" "OK"
+                            Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1"
+                            Set-ButtonsEnabled $true
+
+                            $updatedJobs = Get-AllVeeamJobs
+                            Update-JobGrid $updatedJobs
+                            Update-StateFileList
+
+                            [System.Windows.MessageBox]::Show(
+                                "$($script:watchDisabledCount) Jobs deaktiviert.`nAlle laufenden Jobs sind beendet.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
+                                "Bereit fuer Update",
+                                [System.Windows.MessageBoxButton]::OK,
+                                [System.Windows.MessageBoxImage]::Information
+                            )
+                        }
+                        else {
+                            $elapsed = (Get-Date) - $script:watchStartTime
+                            $waitText = "{0:mm\:ss}" -f $elapsed
+                            $runNames = ($stillRunning | ForEach-Object { $_.Name }) -join ", "
+                            Show-StatusBanner "Warte seit $waitText auf $($stillRunning.Count) laufende Jobs: $runNames"
+                            Write-Log "Warte seit $waitText auf $($stillRunning.Count) Jobs: $runNames" "INFO"
                         }
                     }
-
-                    if ($stillRunning.Count -eq 0) {
-                        Write-Log "Alle Jobs beendet und deaktiviert!" "OK"
-                        Hide-StatusBanner
-                        Show-StatusBanner "Alle Jobs beendet - bereit fuer Update" "#A6E3A1"
-                        break
+                    catch {
+                        Write-Log "Fehler beim Pruefen: $($_.Exception.Message)" "FEHLER"
                     }
-
-                    $runNames = ($stillRunning | ForEach-Object { $_.Name }) -join ", "
-                    Show-StatusBanner "Warte auf $($stillRunning.Count) laufende Jobs: $runNames"
-                    Write-Log "Warte auf $($stillRunning.Count) Jobs: $runNames" "INFO"
-                }
-
-                $successCount += $disabledAfterRun
+                })
+                $script:watchTimer.Start()
+                # Buttons bleiben disabled aber UI ist bedienbar (Fenster schliessen etc.)
+                return
             }
             else {
                 Write-Log "Warten abgebrochen. Laufende Jobs wurden NICHT deaktiviert!" "WARNUNG"
@@ -614,26 +629,13 @@ $btnDisable.Add_Click({
         Update-JobGrid $updatedJobs
         Update-StateFileList
 
-        $stillActive = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
-        if ($stillActive.Count -eq 0) {
-            Write-Log "$successCount Jobs deaktiviert, keine Jobs mehr aktiv." "OK"
-            [System.Windows.MessageBox]::Show(
-                "$successCount Jobs deaktiviert.`nAlle laufenden Jobs sind beendet.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
-                "Bereit fuer Update",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information
-            )
-        }
-        else {
-            $activeNames = ($stillActive | ForEach-Object { $_.Name }) -join ", "
-            Write-Log "ACHTUNG: $($stillActive.Count) Jobs laufen noch: $activeNames" "WARNUNG"
-            [System.Windows.MessageBox]::Show(
-                "$successCount Jobs deaktiviert.`n`nACHTUNG: $($stillActive.Count) Jobs laufen noch!`n$activeNames`n`nBitte warten oder DISABLE erneut druecken.",
-                "Jobs laufen noch",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Warning
-            )
-        }
+        Write-Log "$successCount Jobs deaktiviert." "OK"
+        [System.Windows.MessageBox]::Show(
+            "$successCount Jobs deaktiviert.`nKeine laufenden Jobs.`n`nDas Veeam Update kann jetzt durchgefuehrt werden.`n`nNach dem Update: RESTORE druecken.",
+            "Bereit fuer Update",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Information
+        )
     }
     catch {
         Write-Log "Fehler: $($_.Exception.Message)" "FEHLER"
@@ -771,6 +773,13 @@ catch {
         [System.Windows.MessageBoxImage]::Error
     )
 }
+
+# Timer stoppen wenn Fenster geschlossen wird
+$window.Add_Closing({
+    if ($script:watchTimer -and $script:watchTimer.IsEnabled) {
+        $script:watchTimer.Stop()
+    }
+})
 
 # --- Window anzeigen ---
 $window.ShowDialog() | Out-Null
