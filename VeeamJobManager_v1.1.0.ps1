@@ -21,6 +21,12 @@ Add-Type -AssemblyName WindowsBase
 # --- Konfiguration ---
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+try {
+    $script:FQDN = ([System.Net.Dns]::GetHostEntry($env:COMPUTERNAME)).HostName
+}
+catch {
+    $script:FQDN = $env:COMPUTERNAME
+}
 
 # --- XAML GUI Definition ---
 [xml]$xaml = @"
@@ -441,11 +447,11 @@ $btnSave.Add_Click({
         Update-JobGrid $jobs
 
         $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
-        $outFile = Join-Path $ScriptDir "VeeamJobState_$timestamp.json"
+        $outFile = Join-Path $ScriptDir "VeeamJobState_${script:FQDN}_$timestamp.json"
 
         $state = [PSCustomObject]@{
             SavedAt    = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServerName = $env:COMPUTERNAME
+            ServerName = $script:FQDN
             JobCount   = $jobs.Count
             Jobs       = $jobs
         }
@@ -486,11 +492,11 @@ $btnDisable.Add_Click({
         $jobs = Get-AllVeeamJobs
 
         $timestamp = Get-Date -Format "yyyy-MM-dd_HHmm"
-        $outFile = Join-Path $ScriptDir "VeeamJobState_$timestamp.json"
+        $outFile = Join-Path $ScriptDir "VeeamJobState_${script:FQDN}_$timestamp.json"
 
         $state = [PSCustomObject]@{
             SavedAt    = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServerName = $env:COMPUTERNAME
+            ServerName = $script:FQDN
             JobCount   = $jobs.Count
             Jobs       = $jobs
         }
@@ -668,7 +674,7 @@ $btnRestore.Add_Click({
     $msg += "$($jobsToEnable.Count) Jobs werden aktiviert`n"
     $msg += "$($jobsToKeepDisabled.Count) Jobs bleiben deaktiviert`n`n"
 
-    if ($stateData.ServerName -ne $env:COMPUTERNAME) {
+    if ($stateData.ServerName -ne $script:FQDN) {
         $msg += "ACHTUNG: Zustand wurde auf '$($stateData.ServerName)' erstellt!`n`n"
     }
     $msg += "Fortfahren?"
@@ -746,7 +752,7 @@ $consolePtr = [Console.Window]::GetConsoleWindow()
 
 # --- Init ---
 try {
-    $txtServer.Text = "Server: $($env:COMPUTERNAME)"
+    $txtServer.Text = "Server: $($script:FQDN)"
     Update-StateFileList
     $window.Title = "Veeam Job State Manager v$($script:AppVersion)"
     Write-Log "Veeam Job State Manager v$($script:AppVersion) gestartet."
