@@ -436,11 +436,14 @@ function Get-AllVeeamJobs {
     # --- VBRJob (Backup, Replication, File Copy) ---
     Write-Log "Suche VBR-Jobs (Backup, Replication, Copy)..."
     Get-VBRJob | ForEach-Object {
+        $enabled = $_.IsScheduleEnabled
+        $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+        Write-Log "  $($_.Name) | $($_.TypeToString) | $status"
         $jobs += [PSCustomObject]@{
             Name      = $_.Name
             Id        = $_.Id.ToString()
             Type      = $_.TypeToString
-            IsEnabled = $_.IsScheduleEnabled
+            IsEnabled = $enabled
             JobKind   = "VBRJob"
         }
     }
@@ -455,11 +458,14 @@ function Get-AllVeeamJobs {
     Write-Log "Suche Tape-Jobs..."
     try {
         Get-VBRTapeJob | ForEach-Object {
+            $enabled = $_.Enabled
+            $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+            Write-Log "  $($_.Name) | Tape | $status"
             $jobs += [PSCustomObject]@{
                 Name      = $_.Name
                 Id        = $_.Id.ToString()
                 Type      = "Tape"
-                IsEnabled = $_.Enabled
+                IsEnabled = $enabled
                 JobKind   = "VBRTapeJob"
             }
         }
@@ -477,11 +483,14 @@ function Get-AllVeeamJobs {
         $sureBackupFound = $false
         if (Get-Command "Get-VBRSureBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRSureBackupJob | ForEach-Object {
+                $enabled = $_.IsScheduleEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | SureBackup | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "SureBackup"
-                    IsEnabled = $_.IsScheduleEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRSureBackupJob"
                 }
             }
@@ -489,11 +498,14 @@ function Get-AllVeeamJobs {
         }
         if (-not $sureBackupFound -and (Get-Command "Get-VSBJob" -ErrorAction SilentlyContinue)) {
             Get-VSBJob | ForEach-Object {
+                $enabled = $_.IsScheduleEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | SureBackup | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "SureBackup"
-                    IsEnabled = $_.IsScheduleEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VSBJob"
                 }
             }
@@ -511,11 +523,14 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRBackupCopyJob" -ErrorAction SilentlyContinue) {
             Get-VBRBackupCopyJob | ForEach-Object {
+                $enabled = $_.JobEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | Backup Copy | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "Backup Copy"
-                    IsEnabled = $_.JobEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRBackupCopyJob"
                 }
             }
@@ -536,11 +551,14 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRComputerBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRComputerBackupJob | ForEach-Object {
+                $enabled = $_.JobEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | Agent Backup | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "Agent Backup"
-                    IsEnabled = $_.JobEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRComputerBackupJob"
                 }
             }
@@ -561,11 +579,14 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRComputerBackupCopyJob" -ErrorAction SilentlyContinue) {
             Get-VBRComputerBackupCopyJob | ForEach-Object {
+                $enabled = $_.JobEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | Agent Backup Copy | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "Agent Backup Copy"
-                    IsEnabled = $_.JobEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRComputerBackupCopyJob"
                 }
             }
@@ -586,11 +607,14 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRUnstructuredBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRUnstructuredBackupJob | ForEach-Object {
+                $enabled = $_.JobEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | NAS Backup | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "NAS Backup"
-                    IsEnabled = $_.JobEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRNASBackupJob"
                 }
             }
@@ -600,11 +624,14 @@ function Get-AllVeeamJobs {
         }
         elseif (Get-Command "Get-VBRNASBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRNASBackupJob | ForEach-Object {
+                $enabled = $_.JobEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | NAS Backup | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "NAS Backup"
-                    IsEnabled = $_.JobEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRNASBackupJob"
                 }
             }
@@ -625,11 +652,14 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRCDPPolicy" -ErrorAction SilentlyContinue) {
             Get-VBRCDPPolicy | ForEach-Object {
+                $enabled = $_.IsEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                Write-Log "  $($_.Name) | CDP | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
                     Type      = "CDP"
-                    IsEnabled = $_.IsEnabled
+                    IsEnabled = $enabled
                     JobKind   = "VBRCDPPolicy"
                 }
             }
@@ -650,11 +680,15 @@ function Get-AllVeeamJobs {
     try {
         if (Get-Command "Get-VBRPluginJob" -ErrorAction SilentlyContinue) {
             Get-VBRPluginJob | ForEach-Object {
+                $enabled = $_.IsScheduleEnabled
+                $status = if ($enabled) { "Aktiv" } else { "Inaktiv" }
+                $typeName = "Plugin ($($_.TypeToString))"
+                Write-Log "  $($_.Name) | $typeName | $status"
                 $jobs += [PSCustomObject]@{
                     Name      = $_.Name
                     Id        = $_.Id.ToString()
-                    Type      = "Plugin ($($_.TypeToString))"
-                    IsEnabled = $_.IsScheduleEnabled
+                    Type      = $typeName
+                    IsEnabled = $enabled
                     JobKind   = "VBRPluginJob"
                 }
             }
