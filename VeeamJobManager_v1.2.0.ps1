@@ -11,17 +11,27 @@
     3. (Veeam Update durchfuehren)
     4. RESTORE  - Stellt den urspruenglichen Zustand exakt wieder her
 
-    Unterstuetzte Job-Typen: VMware Backup, Backup Copy, Tape, SureBackup
+    Unterstuetzte Job-Typen:
+    - VBRJob (VMware/Hyper-V Backup, Replication, File Copy)
+    - VBRTapeJob (Backup to Tape, File to Tape)
+    - VBRSureBackupJob / VSBJob (SureBackup)
+    - VBRBackupCopyJob (Backup Copy, ab v12 separat)
+    - VBRComputerBackupJob (Agent Backup)
+    - VBRComputerBackupCopyJob (Agent Backup Copy)
+    - VBRUnstructuredBackupJob / VBRNASBackupJob (NAS/File Share Backup)
+    - VBRCDPPolicy (Continuous Data Protection)
+    - VBRPluginJob (Enterprise App Backup: Oracle RMAN, SAP HANA etc.)
+
     Kompatibel mit Veeam v9, v10, v11, v12 (Snap-in und Modul)
 
 .NOTES
-    Version: 1.1.1
+    Version: 1.2.0
     Autor:   Lars Bahlmann
     Firma:   badata GmbH - www.badata.de
-    Datei:   VeeamJobManager_v1.1.1.ps1
+    Datei:   VeeamJobManager_v1.2.0.ps1
 #>
 
-$script:AppVersion = "1.1.1"
+$script:AppVersion = "1.2.0"
 
 # --- Umlaute sicher kodiert (unabhaengig von Datei-Encoding) ---
 $ae = [string][char]0xE4  # ae
@@ -432,7 +442,9 @@ function Get-AllVeeamJobs {
         }
     }
 
-    # Tape- und SureBackup-Jobs sind optional - nicht jeder Server hat welche
+    # Alle weiteren Job-Typen sind optional - nicht jeder Server hat welche
+    # Jeder Block ist in try/catch, da Cmdlets je nach Veeam-Version fehlen koennen
+
     try {
         Get-VBRTapeJob | ForEach-Object {
             $jobs += [PSCustomObject]@{
@@ -448,19 +460,154 @@ function Get-AllVeeamJobs {
         Write-Log "Keine Tape-Jobs gefunden." "INFO"
     }
 
+    # SureBackup: v12+ Get-VBRSureBackupJob, aeltere Versionen Get-VSBJob
     try {
-        Get-VSBJob | ForEach-Object {
-            $jobs += [PSCustomObject]@{
-                Name      = $_.Name
-                Id        = $_.Id.ToString()
-                Type      = "SureBackup"
-                IsEnabled = $_.IsScheduleEnabled
-                JobKind   = "VSBJob"
+        $sureBackupFound = $false
+        if (Get-Command "Get-VBRSureBackupJob" -ErrorAction SilentlyContinue) {
+            Get-VBRSureBackupJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "SureBackup"
+                    IsEnabled = $_.IsScheduleEnabled
+                    JobKind   = "VBRSureBackupJob"
+                }
+            }
+            $sureBackupFound = $true
+        }
+        if (-not $sureBackupFound -and (Get-Command "Get-VSBJob" -ErrorAction SilentlyContinue)) {
+            Get-VSBJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "SureBackup"
+                    IsEnabled = $_.IsScheduleEnabled
+                    JobKind   = "VSBJob"
+                }
             }
         }
     }
     catch {
         Write-Log "Keine SureBackup-Jobs gefunden." "INFO"
+    }
+
+    # Backup Copy Jobs (ab v12 separat von Get-VBRJob)
+    try {
+        if (Get-Command "Get-VBRBackupCopyJob" -ErrorAction SilentlyContinue) {
+            Get-VBRBackupCopyJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "Backup Copy"
+                    IsEnabled = $_.JobEnabled
+                    JobKind   = "VBRBackupCopyJob"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine separaten Backup-Copy-Jobs gefunden." "INFO"
+    }
+
+    # Agent Backup Jobs
+    try {
+        if (Get-Command "Get-VBRComputerBackupJob" -ErrorAction SilentlyContinue) {
+            Get-VBRComputerBackupJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "Agent Backup"
+                    IsEnabled = $_.JobEnabled
+                    JobKind   = "VBRComputerBackupJob"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine Agent-Backup-Jobs gefunden." "INFO"
+    }
+
+    # Agent Backup Copy Jobs
+    try {
+        if (Get-Command "Get-VBRComputerBackupCopyJob" -ErrorAction SilentlyContinue) {
+            Get-VBRComputerBackupCopyJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "Agent Backup Copy"
+                    IsEnabled = $_.JobEnabled
+                    JobKind   = "VBRComputerBackupCopyJob"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine Agent-Backup-Copy-Jobs gefunden." "INFO"
+    }
+
+    # NAS/Unstructured Backup Jobs (v12: Unstructured, v10/v11: NAS)
+    try {
+        if (Get-Command "Get-VBRUnstructuredBackupJob" -ErrorAction SilentlyContinue) {
+            Get-VBRUnstructuredBackupJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "NAS Backup"
+                    IsEnabled = $_.JobEnabled
+                    JobKind   = "VBRNASBackupJob"
+                }
+            }
+        }
+        elseif (Get-Command "Get-VBRNASBackupJob" -ErrorAction SilentlyContinue) {
+            Get-VBRNASBackupJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "NAS Backup"
+                    IsEnabled = $_.JobEnabled
+                    JobKind   = "VBRNASBackupJob"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine NAS-Backup-Jobs gefunden." "INFO"
+    }
+
+    # CDP Policies (Continuous Data Protection)
+    try {
+        if (Get-Command "Get-VBRCDPPolicy" -ErrorAction SilentlyContinue) {
+            Get-VBRCDPPolicy | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "CDP"
+                    IsEnabled = $_.IsEnabled
+                    JobKind   = "VBRCDPPolicy"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine CDP-Policies gefunden." "INFO"
+    }
+
+    # Plugin Jobs (Oracle RMAN, SAP HANA etc.)
+    try {
+        if (Get-Command "Get-VBRPluginJob" -ErrorAction SilentlyContinue) {
+            Get-VBRPluginJob | ForEach-Object {
+                $jobs += [PSCustomObject]@{
+                    Name      = $_.Name
+                    Id        = $_.Id.ToString()
+                    Type      = "Plugin ($($_.TypeToString))"
+                    IsEnabled = $_.IsScheduleEnabled
+                    JobKind   = "VBRPluginJob"
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Keine Plugin-Jobs gefunden." "INFO"
     }
 
     return $jobs
@@ -568,12 +715,39 @@ $btnDisable.Add_Click({
                         # Veeam bietet kein Disable-VBRTapeJob Cmdlet - Disable-VBRJob funktioniert aber auch fuer Tape-Jobs
                         Get-VBRTapeJob -Name $job.Name | Disable-VBRJob | Out-Null
                     }
+                    "VBRSureBackupJob" {
+                        Get-VBRSureBackupJob -Name $job.Name | Disable-VBRSureBackupJob | Out-Null
+                    }
                     "VSBJob" {
-                        $sureJob = Get-VSBJob -Name $job.Name
-                        $sureJob | Set-VSBJobScheduleOptions -Enabled:$false | Out-Null
+                        Get-VSBJob -Name $job.Name | Set-VSBJobScheduleOptions -Enabled:$false | Out-Null
+                    }
+                    "VBRBackupCopyJob" {
+                        Get-VBRBackupCopyJob -Name $job.Name | Disable-VBRBackupCopyJob | Out-Null
+                    }
+                    "VBRComputerBackupJob" {
+                        Get-VBRComputerBackupJob -Name $job.Name | Disable-VBRComputerBackupJob | Out-Null
+                    }
+                    "VBRComputerBackupCopyJob" {
+                        Get-VBRComputerBackupCopyJob -Name $job.Name | Disable-VBRComputerBackupCopyJob | Out-Null
+                    }
+                    "VBRNASBackupJob" {
+                        # Kein eigenes Disable-Cmdlet - Disable-VBRJob funktioniert
+                        $nasJob = $null
+                        if (Get-Command "Get-VBRUnstructuredBackupJob" -ErrorAction SilentlyContinue) {
+                            $nasJob = Get-VBRUnstructuredBackupJob | Where-Object { $_.Name -eq $job.Name }
+                        } elseif (Get-Command "Get-VBRNASBackupJob" -ErrorAction SilentlyContinue) {
+                            $nasJob = Get-VBRNASBackupJob | Where-Object { $_.Name -eq $job.Name }
+                        }
+                        if ($nasJob) { $nasJob | Disable-VBRJob | Out-Null }
+                    }
+                    "VBRCDPPolicy" {
+                        Get-VBRCDPPolicy -Name $job.Name | Disable-VBRCDPPolicy | Out-Null
+                    }
+                    "VBRPluginJob" {
+                        Get-VBRPluginJob -Name $job.Name | Disable-VBRPluginJob | Out-Null
                     }
                 }
-                Write-Log "$($job.Name) deaktiviert" "OK"
+                Write-Log "$($job.Name) ($($job.Type)) deaktiviert" "OK"
                 $successCount++
             }
             catch {
@@ -758,12 +932,39 @@ $btnRestore.Add_Click({
                         # Veeam bietet kein Enable-VBRTapeJob Cmdlet - Enable-VBRJob funktioniert aber auch fuer Tape-Jobs
                         Get-VBRTapeJob -Name $job.Name | Enable-VBRJob | Out-Null
                     }
+                    "VBRSureBackupJob" {
+                        Get-VBRSureBackupJob -Name $job.Name | Enable-VBRSureBackupJob | Out-Null
+                    }
                     "VSBJob" {
-                        $sureJob = Get-VSBJob -Name $job.Name
-                        $sureJob | Set-VSBJobScheduleOptions -Enabled:$true | Out-Null
+                        Get-VSBJob -Name $job.Name | Set-VSBJobScheduleOptions -Enabled:$true | Out-Null
+                    }
+                    "VBRBackupCopyJob" {
+                        Get-VBRBackupCopyJob -Name $job.Name | Enable-VBRBackupCopyJob | Out-Null
+                    }
+                    "VBRComputerBackupJob" {
+                        Get-VBRComputerBackupJob -Name $job.Name | Enable-VBRComputerBackupJob | Out-Null
+                    }
+                    "VBRComputerBackupCopyJob" {
+                        Get-VBRComputerBackupCopyJob -Name $job.Name | Enable-VBRComputerBackupCopyJob | Out-Null
+                    }
+                    "VBRNASBackupJob" {
+                        # Kein eigenes Enable-Cmdlet - Enable-VBRJob funktioniert
+                        $nasJob = $null
+                        if (Get-Command "Get-VBRUnstructuredBackupJob" -ErrorAction SilentlyContinue) {
+                            $nasJob = Get-VBRUnstructuredBackupJob | Where-Object { $_.Name -eq $job.Name }
+                        } elseif (Get-Command "Get-VBRNASBackupJob" -ErrorAction SilentlyContinue) {
+                            $nasJob = Get-VBRNASBackupJob | Where-Object { $_.Name -eq $job.Name }
+                        }
+                        if ($nasJob) { $nasJob | Enable-VBRJob | Out-Null }
+                    }
+                    "VBRCDPPolicy" {
+                        Get-VBRCDPPolicy -Name $job.Name | Enable-VBRCDPPolicy | Out-Null
+                    }
+                    "VBRPluginJob" {
+                        Get-VBRPluginJob -Name $job.Name | Enable-VBRPluginJob | Out-Null
                     }
                 }
-                Write-Log "$($job.Name) --> Aktiviert" "OK"
+                Write-Log "$($job.Name) ($($job.Type)) --> Aktiviert" "OK"
                 $successCount++
             }
             catch {
