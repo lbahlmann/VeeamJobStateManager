@@ -4,7 +4,7 @@
 
 Ein PowerShell-GUI-Tool, das ein häufiges Problem löst: Vor einem Veeam-Update müssen alle Jobs deaktiviert sein. Nach dem Update weiß man nicht mehr, welche Jobs vorher aktiv waren und welche bereits deaktiviert. Dieses Tool sichert den kompletten Job-Zustand, deaktiviert alles und stellt den Originalzustand nach dem Update exakt wieder her.
 
-> Entwickelt von [badata GmbH](https://www.badata.de) -- IT-Systemhaus aus Verden/Aller
+> Entwickelt von <a href="https://www.badata.de" target="_blank">badata GmbH</a> -- <a href="https://www.badata.de" target="_blank">www.badata.de</a>
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue) ![Veeam](https://img.shields.io/badge/Veeam-v9--v12.3-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -127,7 +127,7 @@ MIT License -- siehe [LICENSE](LICENSE)
 ## Autor
 
 **Lars Bahlmann**
-[badata GmbH](https://www.badata.de) -- IT-Systemhaus aus Verden/Aller
+<a href="https://www.badata.de" target="_blank">badata GmbH</a> -- <a href="https://www.badata.de" target="_blank">www.badata.de</a>
 
 ---
 
@@ -234,4 +234,4 @@ MIT License -- see [LICENSE](LICENSE)
 ## Author
 
 **Lars Bahlmann**
-[badata GmbH](https://www.badata.de) -- IT-Systemhaus aus Verden/Aller
+<a href="https://www.badata.de" target="_blank">badata GmbH</a> -- <a href="https://www.badata.de" target="_blank">www.badata.de</a>
