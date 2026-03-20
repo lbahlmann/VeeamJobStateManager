@@ -28,6 +28,9 @@
     Version: 1.2.0
     Autor:   Lars Bahlmann
     Firma:   badata GmbH - www.badata.de
+    Web:     https://www.badata.de
+    GitHub:  https://github.com/badata/VeeamJobStateManager
+    Lizenz:  MIT
     Datei:   VeeamJobManager_v1.2.0.ps1
 #>
 
