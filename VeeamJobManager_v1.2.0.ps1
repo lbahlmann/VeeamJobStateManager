@@ -431,7 +431,10 @@ function Initialize-Veeam {
 
 function Get-AllVeeamJobs {
     $jobs = @()
+    $countBefore = 0
 
+    # --- VBRJob (Backup, Replication, File Copy) ---
+    Write-Log "Suche VBR-Jobs (Backup, Replication, Copy)..."
     Get-VBRJob | ForEach-Object {
         $jobs += [PSCustomObject]@{
             Name      = $_.Name
@@ -441,10 +444,15 @@ function Get-AllVeeamJobs {
             JobKind   = "VBRJob"
         }
     }
+    $found = $jobs.Count - $countBefore
+    $countBefore = $jobs.Count
+    Write-Log "  VBRJob: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
 
     # Alle weiteren Job-Typen sind optional - nicht jeder Server hat welche
     # Jeder Block ist in try/catch, da Cmdlets je nach Veeam-Version fehlen koennen
 
+    # --- Tape Jobs ---
+    Write-Log "Suche Tape-Jobs..."
     try {
         Get-VBRTapeJob | ForEach-Object {
             $jobs += [PSCustomObject]@{
@@ -455,12 +463,16 @@ function Get-AllVeeamJobs {
                 JobKind   = "VBRTapeJob"
             }
         }
+        $found = $jobs.Count - $countBefore
+        $countBefore = $jobs.Count
+        Write-Log "  Tape: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
     }
     catch {
-        Write-Log "Keine Tape-Jobs gefunden." "INFO"
+        Write-Log "  Tape: nicht verf${ue}gbar" "INFO"
     }
 
-    # SureBackup: v12+ Get-VBRSureBackupJob, aeltere Versionen Get-VSBJob
+    # --- SureBackup: v12+ Get-VBRSureBackupJob, aeltere Versionen Get-VSBJob ---
+    Write-Log "Suche SureBackup-Jobs..."
     try {
         $sureBackupFound = $false
         if (Get-Command "Get-VBRSureBackupJob" -ErrorAction SilentlyContinue) {
@@ -486,12 +498,16 @@ function Get-AllVeeamJobs {
                 }
             }
         }
+        $found = $jobs.Count - $countBefore
+        $countBefore = $jobs.Count
+        Write-Log "  SureBackup: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
     }
     catch {
-        Write-Log "Keine SureBackup-Jobs gefunden." "INFO"
+        Write-Log "  SureBackup: nicht verf${ue}gbar" "INFO"
     }
 
-    # Backup Copy Jobs (ab v12 separat von Get-VBRJob)
+    # --- Backup Copy Jobs (ab v12 separat von Get-VBRJob) ---
+    Write-Log "Suche Backup-Copy-Jobs (v12+)..."
     try {
         if (Get-Command "Get-VBRBackupCopyJob" -ErrorAction SilentlyContinue) {
             Get-VBRBackupCopyJob | ForEach-Object {
@@ -503,13 +519,20 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRBackupCopyJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  Backup Copy: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  Backup Copy: Cmdlet nicht vorhanden (vor v12 in VBRJob enthalten)" "INFO"
         }
     }
     catch {
-        Write-Log "Keine separaten Backup-Copy-Jobs gefunden." "INFO"
+        Write-Log "  Backup Copy: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
 
-    # Agent Backup Jobs
+    # --- Agent Backup Jobs ---
+    Write-Log "Suche Agent-Backup-Jobs..."
     try {
         if (Get-Command "Get-VBRComputerBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRComputerBackupJob | ForEach-Object {
@@ -521,13 +544,20 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRComputerBackupJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  Agent Backup: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  Agent Backup: Cmdlet nicht vorhanden" "INFO"
         }
     }
     catch {
-        Write-Log "Keine Agent-Backup-Jobs gefunden." "INFO"
+        Write-Log "  Agent Backup: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
 
-    # Agent Backup Copy Jobs
+    # --- Agent Backup Copy Jobs ---
+    Write-Log "Suche Agent-Backup-Copy-Jobs..."
     try {
         if (Get-Command "Get-VBRComputerBackupCopyJob" -ErrorAction SilentlyContinue) {
             Get-VBRComputerBackupCopyJob | ForEach-Object {
@@ -539,13 +569,20 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRComputerBackupCopyJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  Agent Backup Copy: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  Agent Backup Copy: Cmdlet nicht vorhanden" "INFO"
         }
     }
     catch {
-        Write-Log "Keine Agent-Backup-Copy-Jobs gefunden." "INFO"
+        Write-Log "  Agent Backup Copy: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
 
-    # NAS/Unstructured Backup Jobs (v12: Unstructured, v10/v11: NAS)
+    # --- NAS/Unstructured Backup Jobs (v12: Unstructured, v10/v11: NAS) ---
+    Write-Log "Suche NAS-Backup-Jobs..."
     try {
         if (Get-Command "Get-VBRUnstructuredBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRUnstructuredBackupJob | ForEach-Object {
@@ -557,6 +594,9 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRNASBackupJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  NAS Backup: $found gefunden (Unstructured-Cmdlet)" $(if ($found -gt 0) { "OK" } else { "INFO" })
         }
         elseif (Get-Command "Get-VBRNASBackupJob" -ErrorAction SilentlyContinue) {
             Get-VBRNASBackupJob | ForEach-Object {
@@ -568,13 +608,20 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRNASBackupJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  NAS Backup: $found gefunden (NAS-Cmdlet)" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  NAS Backup: Cmdlet nicht vorhanden" "INFO"
         }
     }
     catch {
-        Write-Log "Keine NAS-Backup-Jobs gefunden." "INFO"
+        Write-Log "  NAS Backup: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
 
-    # CDP Policies (Continuous Data Protection)
+    # --- CDP Policies (Continuous Data Protection) ---
+    Write-Log "Suche CDP-Policies..."
     try {
         if (Get-Command "Get-VBRCDPPolicy" -ErrorAction SilentlyContinue) {
             Get-VBRCDPPolicy | ForEach-Object {
@@ -586,13 +633,20 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRCDPPolicy"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  CDP: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  CDP: Cmdlet nicht vorhanden" "INFO"
         }
     }
     catch {
-        Write-Log "Keine CDP-Policies gefunden." "INFO"
+        Write-Log "  CDP: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
 
-    # Plugin Jobs (Oracle RMAN, SAP HANA etc.)
+    # --- Plugin Jobs (Oracle RMAN, SAP HANA etc.) ---
+    Write-Log "Suche Plugin-Jobs (Oracle, SAP etc.)..."
     try {
         if (Get-Command "Get-VBRPluginJob" -ErrorAction SilentlyContinue) {
             Get-VBRPluginJob | ForEach-Object {
@@ -604,11 +658,23 @@ function Get-AllVeeamJobs {
                     JobKind   = "VBRPluginJob"
                 }
             }
+            $found = $jobs.Count - $countBefore
+            $countBefore = $jobs.Count
+            Write-Log "  Plugin: $found gefunden" $(if ($found -gt 0) { "OK" } else { "INFO" })
+        }
+        else {
+            Write-Log "  Plugin: Cmdlet nicht vorhanden" "INFO"
         }
     }
     catch {
-        Write-Log "Keine Plugin-Jobs gefunden." "INFO"
+        Write-Log "  Plugin: Fehler beim Abfragen - $($_.Exception.Message)" "WARNUNG"
     }
+
+    # --- Zusammenfassung ---
+    $summary = $jobs | Group-Object JobKind | ForEach-Object { "$($_.Count)x $($_.Name)" }
+    $enabled = @($jobs | Where-Object { $_.IsEnabled -eq $true }).Count
+    $disabled = @($jobs | Where-Object { $_.IsEnabled -eq $false }).Count
+    Write-Log "Gesamt: $($jobs.Count) Jobs ($enabled aktiv, $disabled inaktiv) - $($summary -join ', ')" "OK"
 
     return $jobs
 }
@@ -751,7 +817,7 @@ $btnDisable.Add_Click({
                 $successCount++
             }
             catch {
-                Write-Log "$($job.Name): $($_.Exception.Message)" "FEHLER"
+                Write-Log "$($job.Name) ($($job.Type), $($job.JobKind)): $($_.Exception.Message)" "FEHLER"
                 $errorCount++
             }
         }
@@ -968,7 +1034,7 @@ $btnRestore.Add_Click({
                 $successCount++
             }
             catch {
-                Write-Log "$($job.Name): $($_.Exception.Message)" "FEHLER"
+                Write-Log "$($job.Name) ($($job.Type), $($job.JobKind)): $($_.Exception.Message)" "FEHLER"
                 $errorCount++
             }
         }
