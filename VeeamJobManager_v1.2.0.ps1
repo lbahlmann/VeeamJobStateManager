@@ -29,7 +29,7 @@
     Autor:   Lars Bahlmann
     Firma:   badata GmbH - www.badata.de
     Web:     https://www.badata.de
-    GitHub:  https://github.com/badata/VeeamJobStateManager
+    GitHub:  https://github.com/lbahlmann/VeeamJobStateManager
     Lizenz:  MIT
     Datei:   VeeamJobManager_v1.2.0.ps1
 #>
