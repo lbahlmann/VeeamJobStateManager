@@ -44,6 +44,9 @@ catch {
     $script:FQDN = $env:COMPUTERNAME
 }
 
+# --- Log-Datei ---
+$script:LogFile = Join-Path $ScriptDir "VeeamJobManager_$($script:FQDN).log"
+
 # --- XAML GUI Definition ---
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -287,6 +290,9 @@ function Write-Log {
     $timestamp = Get-Date -Format "HH:mm:ss"
     $txtLog.AppendText("[$timestamp] $Level - $Message`r`n")
     $txtLog.ScrollToEnd()
+    # Parallel ins Log-File schreiben
+    $logTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$logTimestamp] $Level - $Message" | Out-File -FilePath $script:LogFile -Append -Encoding UTF8
     # Leeren Dispatcher-Call ausfuehren damit WPF die UI sofort aktualisiert (verhindert Einfrieren)
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
