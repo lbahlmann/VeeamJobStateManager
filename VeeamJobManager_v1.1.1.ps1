@@ -15,13 +15,13 @@
     Kompatibel mit Veeam v9, v10, v11, v12 (Snap-in und Modul)
 
 .NOTES
-    Version: 1.1.0
+    Version: 1.1.1
     Autor:   Lars Bahlmann
     Firma:   badata GmbH - www.badata.de
-    Datei:   VeeamJobManager_v1.1.0.ps1
+    Datei:   VeeamJobManager_v1.1.1.ps1
 #>
 
-$script:AppVersion = "1.1.0"
+$script:AppVersion = "1.1.1"
 
 # --- Umlaute sicher kodiert (unabhaengig von Datei-Encoding) ---
 $ae = [string][char]0xE4  # ae
@@ -48,7 +48,7 @@ catch {
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Veeam Job State Manager v1.0.0"
+        Title="Veeam Job State Manager"
         Width="900" Height="700"
         MinWidth="750" MinHeight="550"
         WindowStartupLocation="CenterScreen"
@@ -287,6 +287,7 @@ function Write-Log {
     $timestamp = Get-Date -Format "HH:mm:ss"
     $txtLog.AppendText("[$timestamp] $Level - $Message`r`n")
     $txtLog.ScrollToEnd()
+    # Leeren Dispatcher-Call ausfuehren damit WPF die UI sofort aktualisiert (verhindert Einfrieren)
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
@@ -425,6 +426,7 @@ function Get-AllVeeamJobs {
         }
     }
 
+    # Tape- und SureBackup-Jobs sind optional - nicht jeder Server hat welche
     try {
         Get-VBRTapeJob | ForEach-Object {
             $jobs += [PSCustomObject]@{
@@ -557,7 +559,8 @@ $btnDisable.Add_Click({
                         Get-VBRJob -Name $job.Name | Disable-VBRJob | Out-Null
                     }
                     "VBRTapeJob" {
-                        Get-VBRTapeJob -Name $job.Name | Disable-VBRTapeJob | Out-Null
+                        # Veeam bietet kein Disable-VBRTapeJob Cmdlet - Disable-VBRJob funktioniert aber auch fuer Tape-Jobs
+                        Get-VBRTapeJob -Name $job.Name | Disable-VBRJob | Out-Null
                     }
                     "VSBJob" {
                         $sureJob = Get-VSBJob -Name $job.Name
@@ -580,7 +583,7 @@ $btnDisable.Add_Click({
         Update-JobGrid $currentJobs
         Update-StateFileList
 
-        # Laufende Jobs pruefen
+        # Laufende Jobs pruefen (nur VBRJob - Tape/SureBackup haben kein GetLastState)
         Write-Log "Pr${ue}fe auf laufende Jobs..."
         $runningJobs = @(Get-VBRJob | Where-Object { $_.GetLastState() -eq "Working" })
 
@@ -746,7 +749,8 @@ $btnRestore.Add_Click({
                         Get-VBRJob -Name $job.Name | Enable-VBRJob | Out-Null
                     }
                     "VBRTapeJob" {
-                        Get-VBRTapeJob -Name $job.Name | Enable-VBRTapeJob | Out-Null
+                        # Veeam bietet kein Enable-VBRTapeJob Cmdlet - Enable-VBRJob funktioniert aber auch fuer Tape-Jobs
+                        Get-VBRTapeJob -Name $job.Name | Enable-VBRJob | Out-Null
                     }
                     "VSBJob" {
                         $sureJob = Get-VSBJob -Name $job.Name
